@@ -7,38 +7,26 @@ _MATH = {}
 
 --Array of Buttons Globals
 _CONFIG.buttons = {}
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 A"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Left"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 None"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Left" -- 1
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 A" -- 2
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right" --3 
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 None" --4
 
 --Saved State Globals
 _CONFIG.StateDir = "state/"
 _CONFIG.State = "S2.State"
 _CONFIG.StateFile = _CONFIG.StateDir .. _CONFIG.State
 
-_CONFIG.badValue = 1 
-_CONFIG.badMaximum = 100 
+_CONFIG.badValue = 1 --The Number of percent a punishment is worth
+_CONFIG.badMaximum = 5 --Maximum Punishment Percentage
+_CONFIG.timesOutAfter = 50 -- How many frames until it times out if X progress is not made
+
+
+--Bias for certain buttons, right should be highiest, followed by A, then Left
+--In certain cases the loop will begin looking at lower bias buttons for a solution
+_CONFIG.biasRight = 80
+_CONFIG.biasA = 30 
+_CONFIG.biasLeft = 5 -- Less than 10
 
 --Q Globals
 _Q.running = false
@@ -47,6 +35,10 @@ _Q.maxReward = 0
 _Q.punishedCount = 0
 _Q.reward = 0
 _Q.punishment = 0
+
+
+--Q Temp Variables
+_Q.tmp = {}
 
 --Sprite Table Globals
 _SPRITES.objectfields = {
@@ -360,35 +352,41 @@ end
 function _Q.initialiseRun() 
 
 	savestate.load(_CONFIG.StateFile);
-
-    _Q.stopRun = false
     _Q.running = true
-    _Q.timeout = 200
+    _Q.timeout = _CONFIG.timesOutAfter
     _Q.reward = 0
-    _Q.table = {}
-    _Q.table['x'] = 0
 	_Q.frame = 0
+	_Q.tmp['x'] = 0
+	_Q.tmp['y'] = 0	
 
 end
 
 --Checks 
 function _Q.rewardCheck()
 
-    if _Q.table['x'] < _SONIC.sonicX then
-        _Q.giveReward(1)
-        _Q.resetTime()
-        _Q.table['x'] = _SONIC.sonicX 
-    end
+	local dx = _SONIC.sonicX - _Q.tmp['x'] --How Far More X did we get
+	local dy = _SONIC.sonicY - _Q.tmp['y'] --How Far More Y did we get
 
-    if _Q.table['x'] -1 > _SONIC.sonicX then
-        --_Q.running = false
-    end
+	--Going Forwards
+	if (dx > 0) then -- or dx > -5) then
+		_Q.giveReward(1)
+		_Q.resetTime()
+		_Q.tmp['x'] = _SONIC.sonicX 
+		_Q.tmp['y'] = _SONIC.sonicY
+	end
+
+	--Going backwards but time is running out so lets see it does...
+	if (dx < 0 and dx > -200 and _Q.timeout < _CONFIG.timesOutAfter) then 
+		_Q.resetTime()
+		_Q.tmp['x'] = _SONIC.sonicX 
+		_Q.tmp['y'] = _SONIC.sonicY
+	end
 
 end
 
 --Reset the Timeout peroid
 function _Q.resetTime()
-    _Q.timeout = 200
+    _Q.timeout = _CONFIG.timesOutAfter
 end
 
 --Give Reward of X Amount
@@ -396,14 +394,55 @@ function _Q.giveReward(rewardAmount)
     _Q.reward = _Q.reward + rewardAmount
 end
 
+
+function _Q.getBiasRandom()
+	--Random Number between 1-4
+	local rand = 0
+	local btn
+
+	--We timeout has dropped low bias towards lower priority
+	if _Q.timeout < _CONFIG.timesOutAfter / 2 then
+		rand = math.random(0,10)
+	end
+
+	if _Q.timeout >= _CONFIG.timesOutAfter / 2 then
+		rand = math.random(0,100)
+	end	
+
+	return rand
+
+end
+
+function _Q.getrandomBtn()
+
+	local rand = 0
+	
+	rand = _Q.getBiasRandom()
+	if rand < _CONFIG.biasRight then -- Right
+		return 3
+	end
+
+	rand = _Q.getBiasRandom()
+	if rand < _CONFIG.biasA then -- A
+		return 2
+	end
+
+	rand = _Q.getBiasRandom()
+	if rand < _CONFIG.biasLeft then -- Left
+		return 1
+	end
+
+	return 4 -- Nothing
+
+end
+
 --Get command for this frame if needed
 function _Q.getFrameCommand()
 
-	local btnCnt = _TOOLS.arrayLen(_CONFIG.buttons)
-	local newButton = math.random(btnCnt)
+	local rand = _Q.getrandomBtn()
 	
 	if _Q.frame > _TOOLS.arrayLen(_Q.commandSet) then
-        _Q.commandSet[_Q.frame] = _CONFIG.buttons[newButton]
+        _Q.commandSet[_Q.frame] = _CONFIG.buttons[rand]
 	end
 	
 end
@@ -435,6 +474,8 @@ function _Q.punishRun()
     
 end
 
+
+
 --Ends Run
 function _Q.endRun()
 
@@ -443,7 +484,7 @@ function _Q.endRun()
 
 	if(_Q.reward > 0 and _Q.reward <= _Q.maxReward and _Q.punishedCount <= _CONFIG.badMaximum) then
 		_Q.punishedCount = _Q.punishedCount + _CONFIG.badValue
-		_Q.punishment = _TOOLS.arrayLen(_Q.commandSet) / 100 * _Q.punishedCount
+		_Q.punishment = math.floor(_TOOLS.arrayLen(_Q.commandSet) / 100 * _Q.punishedCount)
 	end
 
 	if(_Q.reward > _Q.maxReward) then
@@ -494,7 +535,6 @@ while true do
 
 	--Reduce Time
 	_Q.timeout = _Q.timeout - 1
-	
 	--Advance to next frame
     emu.frameadvance();
 
