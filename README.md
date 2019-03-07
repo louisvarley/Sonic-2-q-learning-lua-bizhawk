@@ -16,6 +16,9 @@ Running with left enabled took ages to make progress as essentially has to rando
 Comparing this to the NEAT script i also have, this is much more crude however it does seem to get to and get stuck on the same bits (parts where you have to go back to hit a spring) 
 On a couple of occasions this did manage to get to the end of the level which considering the simplity of this script is not half bad. 
 
+Further comparison to my NEAT scripts, this seems to learn quicker. NEAT would take around 19 generations and maybe 12 hours to reach a point
+this script was able to get to in only half an hour but this is less adaptable. More of a bruteforce method than using inputs and outputs.
+
 ## Bugs ##
 
 It seems to occsionally get out of sync with the commandset meaning that a run that would be good fails early on
