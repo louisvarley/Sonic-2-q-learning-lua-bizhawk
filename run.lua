@@ -2,26 +2,53 @@ _CONFIG = {}
 _Q = {}
 _SONIC = {}
 _SPRITES = {}
+_TOOLS = {}
+_MATH = {}
 
---Array of Buttons
+--Array of Buttons Globals
 _CONFIG.buttons = {}
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 A"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Left"
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right"
+_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 None"
 
---Saved State
+--Saved State Globals
 _CONFIG.StateDir = "state/"
 _CONFIG.State = "S2.State"
 _CONFIG.StateFile = _CONFIG.StateDir .. _CONFIG.State
 
-_CONFIG.badValue = 3 --How many commands should additionally be killed following a bad run
-_CONFIG.badMaximum = 20 --Maximum number of commands we should be able to kill
+_CONFIG.badValue = 1 
+_CONFIG.badMaximum = 100 
 
+--Q Globals
 _Q.running = false
+_Q.commandSet = {}
+_Q.maxReward = 0
+_Q.punishedCount = 0
+_Q.reward = 0
+_Q.punishment = 0
 
---Sprite Table
+--Sprite Table Globals
 _SPRITES.objectfields = {
 	types = {		
 		[0x01] = {type="" , name="Sonic"},
@@ -321,21 +348,31 @@ function _SONIC.getSprites()
 	end
 end
 
-function _Q.initialise() 
+function _TOOLS.arrayLen(T)
+
+	local count = 0
+	for _ in pairs(T) do count = count + 1 end
+	return count
+
+end
+
+--Begin a new run
+function _Q.initialiseRun() 
 
 	savestate.load(_CONFIG.StateFile);
 
     _Q.stopRun = false
     _Q.running = true
-    _Q.timeout = 500
+    _Q.timeout = 200
     _Q.reward = 0
     _Q.table = {}
     _Q.table['x'] = 0
-    _Q.frame = 0
+	_Q.frame = 0
 
 end
 
-function _Q.getReward()
+--Checks 
+function _Q.rewardCheck()
 
     if _Q.table['x'] < _SONIC.sonicX then
         _Q.giveReward(1)
@@ -349,94 +386,116 @@ function _Q.getReward()
 
 end
 
+--Reset the Timeout peroid
 function _Q.resetTime()
-    _Q.timeout = 500
+    _Q.timeout = 200
 end
 
+--Give Reward of X Amount
 function _Q.giveReward(rewardAmount)
     _Q.reward = _Q.reward + rewardAmount
 end
 
-function _Q.getCommand()
+--Get command for this frame if needed
+function _Q.getFrameCommand()
 
-    local newButton = math.random(4)
-    if _Q.command[_Q.frame] == nil then
-        _Q.command[#_Q.command+1] = _CONFIG.buttons[newButton]
-    end
-    
+	local btnCnt = _TOOLS.arrayLen(_CONFIG.buttons)
+	local newButton = math.random(btnCnt)
+	
+	if _Q.frame > _TOOLS.arrayLen(_Q.commandSet) then
+        _Q.commandSet[_Q.frame] = _CONFIG.buttons[newButton]
+	end
+	
 end
 
-function _Q.runCommand()
+--Run a given command list
+function _Q.runCommandSet(commandSet)
 
     local controller = {}
-
     for i = 1,#_CONFIG.buttons do
-        if _Q.command[_Q.frame] == _CONFIG.buttons[i] then
+        if commandSet[_Q.frame] == _CONFIG.buttons[i] then
             controller[_CONFIG.buttons[i]] = true
         end
     end
-
     joypad.set(controller)
     
 end
 
-function _Q.killLast()
+--Reduce a percentage from the command set and allow rebuild
+function _Q.punishRun()
 
-    local cnt = 0
-
-
-    --cnt total commands
-
-    for i = 1,#_Q.command do
-        if i > _Q.badCount then
-         _Q.command[i] = nill
-        end
-    end   
+	--cnt total commands
+	if _Q.punishment > 0 then
+		for i = 1,#_Q.commandSet do
+			if i > _Q.punishment then
+				_Q.commandSet[i] = nill
+			end
+		end   
+	end
     
 end
 
-_Q.command = {}
-_Q.maxReward = 0
-_Q.badCount = 0
-_Q.reward = 0
+--Ends Run
+function _Q.endRun()
+
+	console.clear()
+	console.log("---------------------------------------")	
+
+	if(_Q.reward > 0 and _Q.reward <= _Q.maxReward and _Q.punishedCount <= _CONFIG.badMaximum) then
+		_Q.punishedCount = _Q.punishedCount + _CONFIG.badValue
+		_Q.punishment = _TOOLS.arrayLen(_Q.commandSet) / 100 * _Q.punishedCount
+	end
+
+	if(_Q.reward > _Q.maxReward) then
+		_Q.maxReward = _Q.reward
+		_Q.punishedCount = 0
+		_Q.punishment = 0
+		console.log("NEW RECORD")
+	end
+
+	console.log("Punishment: " .. _Q.punishment )
+	console.log("Reward: " .. _Q.reward)
+	console.log("Max Reward: " .. _Q.maxReward)
+	console.log("Command Length: " .. _TOOLS.arrayLen(_Q.commandSet))
+	console.log("Punishment Percentage: " .. _Q.punishedCount .. "%")
+
+	_Q.punishRun()
+	_Q.initialiseRun()
+
+end
 
 while true do
 
-    if _Q.running == false or _Q.timeout <= 0 then
-      
-        if(_Q.reward <= _Q.maxReward and _Q.badCount <= _CONFIG.badMaximum) then
-            _Q.badCount = _Q.badCount + _CONFIG.badValue
-        end
+	--Get this frame number
+	_Q.frame = mainmemory.read_u16_be(0xFE04)
 
-        if(_Q.reward > _Q.maxReward) then
-            _Q.maxReward = _Q.reward
-            _Q.badCount = 0
-        end
-
-        console.log("bad count: " .. _Q.badCount)
-        console.log("Reward this run: " .. _Q.reward)
-        console.log("Max Reward: " .. _Q.maxReward)
-
-
-        _Q.killLast()
-        _Q.initialise()
-      
+	--Out of time or running is stopped
+	if _Q.running == false or _Q.timeout <= 0 then
+		_Q.endRun()
     end
 
-    _Q.frame = _Q.frame + 1
-
-    _Q.getCommand()
-    _Q.runCommand()
-
-
-    _SONIC.getPositions()
-    _SONIC.getSprites()
+	--Get Sonics X, Y this frame
+	_SONIC.getPositions()
+	
+	--Get Sprites this frame
+	_SONIC.getSprites()
+	
+	--Check for Hit this frame
     _SONIC.hitCheck()
 
-    _Q.getReward()
+	--Gets a new command if needed for this frame
+	_Q.getFrameCommand()
 
-    _Q.timeout = _Q.timeout - 1
+	--Run the command for this frame
+	_Q.runCommandSet(_Q.commandSet)
+	
+	--Check and apply any rewards 
+    _Q.rewardCheck()
 
+	--Reduce Time
+	_Q.timeout = _Q.timeout - 1
+	
+	--Advance to next frame
     emu.frameadvance();
 
 end
