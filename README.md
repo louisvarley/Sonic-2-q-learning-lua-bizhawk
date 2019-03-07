@@ -16,6 +16,11 @@ Running with left enabled took ages to make progress as essentially has to rando
 Comparing this to the NEAT script i also have, this is much more crude however it does seem to get to and get stuck on the same bits (parts where you have to go back to hit a spring) 
 On a couple of occasions this did manage to get to the end of the level which considering the simplity of this script is not half bad. 
 
+## Bugs ##
+
+It seems to occsionally get out of sync with the commandset meaning that a run that would be good fails early on
+as sonic will jump maybe 1 frame early, unsure why this is. 
+
 ## To Do ##
 * [x] Save / Load command sets to and from a file
 * [x] Save command sets when a new max reward is met. 
