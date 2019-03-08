@@ -18,13 +18,19 @@ On a couple of occasions this did manage to get to the end of the level which co
 Further comparison to my NEAT scripts, this seems to learn quicker. NEAT would take around 19 generations and maybe 12 hours to reach a point
 this script was able to get to in only half an hour but this is less adaptable. More of a bruteforce method than using inputs and outputs.
 
+## Button Bias and Priority ##
+
+You can set and play with button Bias in the config. Essentially, when its doing well, it will look to use the highier bias buttons
+these should be right, followed by A. should it find itself stuck, the timeout drops below a number and it will start to choose lower bias buttons
+such a left to see if this gets it out its hole!
+
 ## Bugs ##
 
 It seems to occsionally get out of sync with the commandset meaning that a run that would be good fails early on
 as sonic will jump maybe 1 frame early, unsure why this is. 
 
 ## To Do ##
-* Save Progress / Load command sets to and from a file
-* Save command sets when a new max reward is met. 
-* Work out a decent bias system so it tends to want to go right but can also go left if bad count gets high enough
+* Load command set from a file
+* [x]Save command sets when a new max reward is met. 
+* [x]Work out a decent bias system so it tends to want to go right but can also go left if bad count gets high enough
 * Allow bias to increase if X count stops

@@ -10,23 +10,23 @@ _CONFIG.buttons = {}
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Left" -- 1
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 A" -- 2
 _CONFIG.buttons[#_CONFIG.buttons+1] = "P1 Right" --3 
-_CONFIG.buttons[#_CONFIG.buttons+1] = "P1 None" --4
 
 --Saved State Globals
 _CONFIG.StateDir = "state/"
+_CONFIG.CommandSetDir = "runs/"
 _CONFIG.State = "S2.State"
 _CONFIG.StateFile = _CONFIG.StateDir .. _CONFIG.State
 
 _CONFIG.badValue = 1 --The Number of percent a punishment is worth
-_CONFIG.badMaximum = 5 --Maximum Punishment Percentage
-_CONFIG.timesOutAfter = 50 -- How many frames until it times out if X progress is not made
+_CONFIG.badMaximum = 20 --Maximum Punishment Percentage
+_CONFIG.timesOutAfter = 200 -- How many frames until it times out if X progress is not made
 
 
 --Bias for certain buttons, right should be highiest, followed by A, then Left
 --In certain cases the loop will begin looking at lower bias buttons for a solution
 _CONFIG.biasRight = 80
-_CONFIG.biasA = 30 
-_CONFIG.biasLeft = 5 -- Less than 10
+_CONFIG.biasA = 20 
+_CONFIG.biasLeft = 10 -- Less than 10
 
 --Q Globals
 _Q.running = false
@@ -35,7 +35,9 @@ _Q.maxReward = 0
 _Q.punishedCount = 0
 _Q.reward = 0
 _Q.punishment = 0
-
+_Q.timeout = -1
+_Q.runNumber = 0
+_Q.frame = 0
 
 --Q Temp Variables
 _Q.tmp = {}
@@ -356,32 +358,48 @@ function _Q.initialiseRun()
     _Q.timeout = _CONFIG.timesOutAfter
     _Q.reward = 0
 	_Q.frame = 0
-	_Q.tmp['x'] = 0
-	_Q.tmp['y'] = 0	
+	_Q.x = 0
+	_Q.y = 0	
 
 end
 
 --Checks 
 function _Q.rewardCheck()
 
-	local dx = _SONIC.sonicX - _Q.tmp['x'] --How Far More X did we get
-	local dy = _SONIC.sonicY - _Q.tmp['y'] --How Far More Y did we get
+	local dx = _SONIC.sonicX - _Q.x --How Far More X did we get
+	local dy = _SONIC.sonicY - _Q.y --How Far More Y did we get
 
 	--Going Forwards
 	if (dx > 0) then -- or dx > -5) then
 		_Q.giveReward(1)
 		_Q.resetTime()
-		_Q.tmp['x'] = _SONIC.sonicX 
-		_Q.tmp['y'] = _SONIC.sonicY
+		_Q.x = _SONIC.sonicX 
+		_Q.y = _SONIC.sonicY
 	end
 
 	--Going backwards but time is running out so lets see it does...
-	if (dx < 0 and dx > -200 and _Q.timeout < _CONFIG.timesOutAfter) then 
+	if (dx < 0 and dx > -1 and _Q.timeout < _CONFIG.timesOutAfter) then 
 		_Q.resetTime()
-		_Q.tmp['x'] = _SONIC.sonicX 
-		_Q.tmp['y'] = _SONIC.sonicY
+		_Q.timeout = _Q.timeout / 2
+		_Q.x = _SONIC.sonicX 
+		_Q.y = _SONIC.sonicY
 	end
 
+end
+
+function _Q.saveCommandSet()
+
+	local i = 0
+	local file = io.open(_CONFIG.CommandSetDir .. "runset." .. _Q.runNumber .. "." .. _Q.maxReward .. ".run", "w")
+
+	while i <= _Q.frame do
+		i = i + 1
+		if _Q.commandSet[i] ~= nil then
+			file:write(_Q.commandSet[i] .. "\n")
+		end
+	end
+
+	file:close()
 end
 
 --Reset the Timeout peroid
@@ -400,8 +418,8 @@ function _Q.getBiasRandom()
 	local rand = 0
 	local btn
 
-	--We timeout has dropped low bias towards lower priority
-	if _Q.timeout < _CONFIG.timesOutAfter / 2 then
+	--the timeout has dropped low bias towards lower priority
+	if _Q.timeout < _CONFIG.timesOutAfter then
 		rand = math.random(0,10)
 	end
 
@@ -432,7 +450,7 @@ function _Q.getrandomBtn()
 		return 1
 	end
 
-	return 4 -- Nothing
+	return 3
 
 end
 
@@ -474,13 +492,21 @@ function _Q.punishRun()
     
 end
 
-
-
 --Ends Run
 function _Q.endRun()
 
+	_Q.runNumber = _Q.runNumber + 1
+
 	console.clear()
 	console.log("---------------------------------------")	
+
+	if _Q.timeout == 0 then
+		console.log("RUN TIMEOUT" )
+	end
+
+	if _Q.running == false then
+		console.log("DIED" )
+	end
 
 	if(_Q.reward > 0 and _Q.reward <= _Q.maxReward and _Q.punishedCount <= _CONFIG.badMaximum) then
 		_Q.punishedCount = _Q.punishedCount + _CONFIG.badValue
@@ -492,8 +518,9 @@ function _Q.endRun()
 		_Q.punishedCount = 0
 		_Q.punishment = 0
 		console.log("NEW RECORD")
+		_Q.saveCommandSet(_Q.commandSet,_Q.maxReward)
 	end
-
+	console.log("Run: " .. _Q.runNumber )
 	console.log("Punishment: " .. _Q.punishment )
 	console.log("Reward: " .. _Q.reward)
 	console.log("Max Reward: " .. _Q.maxReward)
@@ -509,9 +536,10 @@ while true do
 
 	--Get this frame number
 	_Q.frame = mainmemory.read_u16_be(0xFE04)
-
+	--_Q.frame = _Q.frame + 1
 	--Out of time or running is stopped
 	if _Q.running == false or _Q.timeout <= 0 then
+	
 		_Q.endRun()
     end
 
