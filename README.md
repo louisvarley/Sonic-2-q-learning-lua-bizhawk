@@ -31,6 +31,6 @@ as sonic will jump maybe 1 frame early, unsure why this is.
 
 ## To Do ##
 * Load command set from a file
-* [x]Save command sets when a new max reward is met. 
-* [x]Work out a decent bias system so it tends to want to go right but can also go left if bad count gets high enough
+* [x] Save command sets when a new max reward is met. 
+* [x] Work out a decent bias system so it tends to want to go right but can also go left if bad count gets high enough
 * Allow bias to increase if X count stops
